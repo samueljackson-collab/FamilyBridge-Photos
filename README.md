@@ -23,6 +23,12 @@ A self-hosted family photo sharing application designed with elderly users as th
 
 ## Overview
 
+> [!IMPORTANT]
+> This repository currently contains documentation only. The `frontend/` and `backend/`
+> directories described below are planned project structure and are not yet committed
+> in this branch.
+
+
 FamilyBridge Photos addresses a common problem: elderly family members who want to view and share family photos but find mainstream photo services too complex, too small to read, or lacking in privacy. This application provides:
 
 - **Self-hosted privacy**: Photos never leave your own server
@@ -58,7 +64,7 @@ FamilyBridge Photos addresses a common problem: elderly family members who want 
 - **Bearer Token Authentication**: All API requests authenticated via JWT tokens
 - **Signed Image URLs**: Backend-generated expiring URLs for secure image access
 - **Authenticated Image Proxy**: Images fetched through API client with credentials, never exposed as bare URLs
-- **Credential Isolation**: Authentication tokens stored in localStorage with per-request injection
+- **Credential Isolation**: Prefer HttpOnly, `Secure`, `SameSite` cookies for session tokens to reduce XSS token theft risk
 
 ## Accessibility
 
@@ -141,6 +147,11 @@ FamilyBridge Photos is built to meet WCAG 2.1 AAA standards:
 - **Storage**: Local disk or NAS mount for photo storage
 
 ## Installation
+
+The runtime setup commands below apply once the application source directories exist.
+If you only cloned this branch and can only see `README.md`, there is no runnable
+application code to install yet.
+
 
 ### Frontend Setup
 
@@ -314,7 +325,7 @@ All API endpoints require a Bearer token in the `Authorization` header:
 Authorization: Bearer <token>
 ```
 
-Tokens are stored in `localStorage` under the key `authToken` and automatically attached to all frontend API requests via an Axios interceptor.
+For browser sessions, prefer HttpOnly secure cookies. If Bearer headers are required, keep short-lived access tokens in memory and avoid persistent browser storage when possible.
 
 ## Backup System
 
@@ -444,9 +455,12 @@ Every UI decision prioritizes elderly users:
 ### Authentication Flow
 
 1. User logs in and receives a JWT token
-2. Token is stored in `localStorage`
-3. Axios interceptor attaches `Authorization: Bearer <token>` to every request
+2. Session token is set in an HttpOnly, `Secure`, `SameSite` cookie
+3. Browser includes the cookie automatically on same-site API requests
 4. Backend validates the token before serving any content
+
+If a Bearer token model is required for API clients, store refresh/session secrets in
+HttpOnly cookies and keep short-lived access tokens in memory instead of `localStorage`.
 
 ### Image Security
 
@@ -470,7 +484,7 @@ Image paths are normalized and encoded before being sent to the API:
 **Photos not displaying**
 - Verify the backend is running and accessible
 - Check that the `VITE_API_URL` points to the correct backend address
-- Confirm the authentication token is valid (check browser localStorage)
+- Confirm the authentication session is valid (inspect request cookies or active token state)
 - Inspect the browser console for 401/403 errors
 
 **Upload failing**
