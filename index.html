@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FamilyBridge Photos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    {/* Additional CSS for map features */}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch@3.11.0/dist/geosearch.css" />
+
+    {/* Scripts for offline map support */}
+    <script src="https://unpkg.com/pouchdb@7.3.0/dist/pouchdb.min.js"></script>
+    <script src="https://unpkg.com/leaflet.offline@2.0.0/dist/leaflet.offline.min.js"></script>
+
+ <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^18.2.0/",
+    "react": "https://esm.sh/react@^18.2.0",
+    "react-dom/": "https://esm.sh/react-dom@^18.2.0/",
+    "leaflet": "https://esm.sh/leaflet@1.9.4",
+    "react-leaflet": "https://esm.sh/react-leaflet@4.2.1",
+    "react-dom": "https://esm.sh/react-dom@^18.2.0",
+    "react-leaflet-cluster": "https://esm.sh/react-leaflet-cluster@2.1.0",
+    "exifreader": "https://esm.sh/exifreader@4.20.0",
+    "leaflet-geosearch": "https://esm.sh/leaflet-geosearch@3.11.0"
+  }
+}
+</script>
+<style>
+  body {
+    --animation-speed-fast: 300ms;
+    --animation-speed-slow: 600ms;
+  }
+  .leaflet-container {
+    height: 100%;
+    width: 100%;
+    border-radius: 1.5rem; /* 24px */
+  }
+  .animate-fade-in {
+      animation: fadeIn var(--animation-speed-fast) ease-in-out;
+  }
+  @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
+  }
+  /* Style overrides for leaflet-geosearch to match dark theme */
+  .leaflet-bar-part.leaflet-bar-part-single {
+    border-radius: 12px !important;
+  }
+  .leaflet-control-geosearch a.leaflet-bar-part-single,
+  .leaflet-control-savetiles a {
+    background-color: #1e293b !important; /* slate-800 */
+    color: #cbd5e1 !important; /* slate-300 */
+    border: 2px solid #334155 !important; /* slate-700 */
+    width: 50px !important;
+    height: 50px !important;
+    line-height: 46px !important;
+    font-size: 1.5rem !important;
+    border-radius: 12px !important;
+  }
+  .leaflet-control-geosearch a.leaflet-bar-part-single:hover,
+  .leaflet-control-savetiles a:hover {
+    background-color: #334155 !important; /* slate-700 */
+  }
+  .leaflet-control-geosearch .results.active {
+    background-color: #1e293b;
+    border: 2px solid #334155;
+  }
+  .leaflet-control-geosearch .results > * {
+    color: #cbd5e1;
+  }
+   .leaflet-control-geosearch .results > *:hover {
+    background-color: #334155;
+  }
+  .leaflet-control-geosearch form input {
+     background-color: #0f172a !important; /* slate-900 */
+     border-color: #334155 !important;
+     color: #f1f5f9 !important; /* slate-100 */
+     height: 50px !important;
+     padding: 0 1rem;
+     border-radius: 12px !important;
+  }
+  /* Styles for cluster tooltips */
+  .cluster-tooltip {
+    background-color: #1e293b !important; /* slate-800 */
+    border: 2px solid #334155 !important; /* slate-700 */
+    color: #f1f5f9 !important; /* slate-100 */
+    border-radius: 8px !important;
+    font-size: 1.1rem !important;
+    padding: 12px 16px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    text-align: center;
+  }
+  .leaflet-tooltip-top:before {
+    border-top-color: #334155 !important;
+  }
+  /* Custom Popup Styles for a polished look */
+  .leaflet-popup-content-wrapper {
+    background-color: transparent !important;
+    border-radius: 0.75rem !important; /* 12px */
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  .leaflet-popup-content {
+    margin: 0 !important;
+    width: 100% !important;
+  }
+  .leaflet-popup-tip-container {
+    visibility: hidden; /* Hiding the default tip for a cleaner look */
+  }
+  .leaflet-popup-close-button {
+    display: none; /* We use custom close buttons if needed */
+  }
+  /* Accessibility improvement: Focus style for map markers/clusters */
+  .leaflet-marker-icon:focus {
+    outline: 4px solid #60a5fa; /* blue-400 */
+    outline-offset: 3px;
+    border-radius: 50%;
+  }
+</style>
+</head>
+  <body class="bg-slate-950 text-slate-200">
+    <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+  </body>
+</html>

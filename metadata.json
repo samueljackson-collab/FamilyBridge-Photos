@@ -1,0 +1,8 @@
+{
+  "name": "FamilyBridge Photos - Google Photos Inspired",
+  "description": "An elder-friendly photo sharing application inspired by Google Photos, rebuilt with a dark theme, large text, a photo-centric gallery, and a geolocation map view for an intuitive experience.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}
