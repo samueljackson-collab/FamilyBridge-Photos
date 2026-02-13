@@ -23,7 +23,11 @@ const Thumbnail: React.FC<{ file: File }> = ({ file }) => {
 
 const HistoryItem: React.FC<{ item: SharedDetails }> = ({ item }) => {
     const imageFiles = useMemo(() => item.files.filter(f => f.type.startsWith('image/')), [item.files]);
-    
+
+    const formattedDate = useMemo(() => {
+        return item.sharedAt.toLocaleString();
+    }, [item.sharedAt]);
+
     return (
         <div className="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-lg">
             <div className="flex justify-between items-start">
@@ -32,11 +36,11 @@ const HistoryItem: React.FC<{ item: SharedDetails }> = ({ item }) => {
                     <p className="text-4xl font-bold text-blue-400">{item.recipientEmail}</p>
                     <p className="text-2xl text-slate-400 mt-4">{item.files.length} file(s) sent</p>
                 </div>
-                <p className="text-xl text-slate-500">{new Date().toLocaleDateString()}</p>
+                <p className="text-xl text-slate-500">{formattedDate}</p>
             </div>
             {item.message && (
                 <blockquote className="my-6 p-4 bg-slate-800 border-l-4 border-slate-600 text-2xl text-slate-300 italic">
-                    "{item.message}"
+                    &ldquo;{item.message}&rdquo;
                 </blockquote>
             )}
             {imageFiles.length > 0 && (

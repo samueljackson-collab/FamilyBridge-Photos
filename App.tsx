@@ -10,14 +10,24 @@ import { DragDropOverlay } from './components/DragDropOverlay';
 import { FileUploadScreen } from './components/FileUploadScreen';
 import { AlbumListScreen } from './components/AlbumListScreen';
 import { Slideshow } from './components/Slideshow';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import type { SharedDetails } from './types';
+
+const ALLOWED_FILE_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp', 'image/tiff', 'image/heic', 'image/heif',
+  'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo',
+  'application/pdf',
+]);
+const MAX_FILE_SIZE_MB = 500;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const ACCEPTED_FILE_INPUT = 'image/*,video/*,application/pdf';
 
 export default function App() {
   const [files, setFiles] = useState<File[]>([]);
   const [customLocations, setCustomLocations] = useState<Map<string, { latitude: number; longitude: number }>>(new Map());
   const [customTags, setCustomTags] = useState<Map<string, string[]>>(new Map());
   const [mainView, setMainView] = useState<MainView>('PHOTOS');
-  
+
   // State for albums
   const [albums, setAlbums] = useState<Map<string, Set<File>>>(new Map());
   const [viewingAlbumName, setViewingAlbumName] = useState<string | null>(null);
@@ -34,21 +44,48 @@ export default function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
 
-  const handleFilesAdded = (newFiles: File[]) => {
-    const uniqueNewFiles = newFiles.filter(
-      (newFile) => !files.some((existingFile) => existingFile.name === newFile.name && existingFile.size === newFile.size)
-    );
-    if (uniqueNewFiles.length > 0) {
-      setFilesToUpload(uniqueNewFiles);
-      setIsUploading(true);
+  // Use useCallback to avoid stale closures in drag-drop handlers.
+  // Uses functional state update to read current files without depending on `files`.
+  const handleFilesAdded = useCallback((newFiles: File[]) => {
+    const errors: string[] = [];
+    const validFiles = newFiles.filter(file => {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        errors.push(`"${file.name}" exceeds the ${MAX_FILE_SIZE_MB}MB size limit.`);
+        return false;
+      }
+      // Allow files with empty type (some OS/browser combos don't report it)
+      if (file.type && !ALLOWED_FILE_TYPES.has(file.type)) {
+        errors.push(`"${file.name}" has an unsupported file type (${file.type}).`);
+        return false;
+      }
+      return true;
+    });
+
+    if (errors.length > 0) {
+      setUploadErrors(errors);
     }
-  };
-  
+
+    if (validFiles.length === 0) return;
+
+    // Functional update to access current files without stale closure
+    setFiles(currentFiles => {
+      const uniqueNewFiles = validFiles.filter(
+        (newFile) => !currentFiles.some((existingFile) => existingFile.name === newFile.name && existingFile.size === newFile.size)
+      );
+      if (uniqueNewFiles.length > 0) {
+        setFilesToUpload(uniqueNewFiles);
+        setIsUploading(true);
+      }
+      return currentFiles;
+    });
+  }, []);
+
   const handleUploadComplete = (uploadedFiles: File[]) => {
     setFiles((prevFiles) => {
       const allFiles = [...uploadedFiles, ...prevFiles];
@@ -69,7 +106,6 @@ export default function App() {
   const handleDeleteFiles = (filesToDelete: File[]) => {
     const filesToDeleteSet = new Set(filesToDelete);
     setFiles(prevFiles => prevFiles.filter(file => !filesToDeleteSet.has(file)));
-    // Also remove from albums
     setAlbums(prevAlbums => {
         const newAlbums = new Map<string, Set<File>>(prevAlbums);
         newAlbums.forEach((fileSet, albumName) => {
@@ -84,9 +120,9 @@ export default function App() {
     setFilesToShare(files);
     setIsSharing(true);
   };
-  
-  const handleSend = (details: Omit<SharedDetails, 'files'>) => {
-    const finalDetails = { ...details, files: filesToShare };
+
+  const handleSend = (details: Omit<SharedDetails, 'files' | 'sharedAt'>) => {
+    const finalDetails: SharedDetails = { ...details, files: filesToShare, sharedAt: new Date() };
     setSharingHistory(prev => [finalDetails, ...prev]);
     setLastSharedDetails(finalDetails);
     setIsSharing(false);
@@ -108,7 +144,7 @@ export default function App() {
     const key = `${file.name}-${file.lastModified}`;
     setCustomLocations(prev => new Map(prev).set(key, location));
   }, []);
-  
+
   const handleUpdateTags = useCallback((file: File, tags: string[]) => {
     const key = `${file.name}-${file.lastModified}`;
     setCustomTags(prev => new Map(prev).set(key, tags));
@@ -129,7 +165,7 @@ export default function App() {
         return newAlbums;
     });
   };
-  
+
   const handleViewAlbum = (albumName: string) => {
     setViewingAlbumName(albumName);
     setMainView('PHOTOS');
@@ -160,7 +196,7 @@ export default function App() {
       setIsDraggingOver(false);
     }
   }, []);
-  
+
   const handleDragOver = useCallback((e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -175,7 +211,7 @@ export default function App() {
       handleFilesAdded(Array.from(e.dataTransfer.files));
       e.dataTransfer.clearData();
     }
-  }, []);
+  }, [handleFilesAdded]);
 
   useEffect(() => {
     window.addEventListener('dragenter', handleDragEnter);
@@ -190,6 +226,8 @@ export default function App() {
       window.removeEventListener('drop', handleDrop);
     };
   }, [handleDragEnter, handleDragLeave, handleDragOver, handleDrop]);
+
+  const dismissUploadErrors = useCallback(() => setUploadErrors([]), []);
 
   const renderCurrentView = () => {
     if (isUploading) {
@@ -206,21 +244,21 @@ export default function App() {
 
     switch (mainView) {
       case 'PHOTOS':
-        return <GalleryScreen 
-                  files={filesForGallery} 
+        return <GalleryScreen
+                  files={filesForGallery}
                   albumName={viewingAlbumName}
                   onExitAlbumView={handleExitAlbumView}
                   albums={albums}
                   onCreateAlbum={handleCreateAlbum}
                   onAddToAlbum={handleAddToAlbum}
-                  customLocations={customLocations} 
-                  onLocationUpdate={handleSetCustomLocation} 
-                  customTags={customTags} 
-                  onUpdateTags={handleUpdateTags} 
-                  onDeleteFiles={handleDeleteFiles} 
-                  onShare={handleStartShare} 
-                  isUploading={isUploading} 
-                  onAddPhotosClick={handleAddPhotosClick} 
+                  customLocations={customLocations}
+                  onLocationUpdate={handleSetCustomLocation}
+                  customTags={customTags}
+                  onUpdateTags={handleUpdateTags}
+                  onDeleteFiles={handleDeleteFiles}
+                  onShare={handleStartShare}
+                  isUploading={isUploading}
+                  onAddPhotosClick={handleAddPhotosClick}
                   onStartSlideshow={handleStartSlideshow}
                 />;
       case 'SHARING':
@@ -228,18 +266,18 @@ export default function App() {
       case 'ALBUMS':
         return <AlbumListScreen albums={albums} onCreateAlbum={handleCreateAlbum} onViewAlbum={handleViewAlbum} />;
       default:
-        return <GalleryScreen 
-                  files={files} 
-                  albums={albums} 
+        return <GalleryScreen
+                  files={files}
+                  albums={albums}
                   onCreateAlbum={handleCreateAlbum}
                   onAddToAlbum={handleAddToAlbum}
-                  customLocations={customLocations} 
-                  onLocationUpdate={handleSetCustomLocation} 
-                  customTags={customTags} 
-                  onUpdateTags={handleUpdateTags} 
-                  onDeleteFiles={handleDeleteFiles} 
-                  onShare={handleStartShare} 
-                  isUploading={isUploading} 
+                  customLocations={customLocations}
+                  onLocationUpdate={handleSetCustomLocation}
+                  customTags={customTags}
+                  onUpdateTags={handleUpdateTags}
+                  onDeleteFiles={handleDeleteFiles}
+                  onShare={handleStartShare}
+                  isUploading={isUploading}
                   onAddPhotosClick={handleAddPhotosClick}
                   onStartSlideshow={handleStartSlideshow}
                />;
@@ -249,35 +287,53 @@ export default function App() {
   const showNav = !isSharing && !isSuccess && !isUploading;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans flex flex-col items-center p-4 sm:p-6 md:p-8 md:pb-8 pb-28">
-      {isDraggingOver && <DragDropOverlay />}
-      {slideshowFiles && <Slideshow files={slideshowFiles} onClose={() => setSlideshowFiles(null)} />}
-      <input
-        type="file"
-        multiple
-        ref={fileInputRef}
-        onChange={(e) => handleFilesAdded(Array.from(e.target.files ?? []))}
-        className="hidden"
-        aria-hidden="true"
-      />
-      <input
-        type="file"
-        accept="image/*"
-        capture="environment"
-        ref={cameraInputRef}
-        onChange={(e) => handleFilesAdded(Array.from(e.target.files ?? []))}
-        className="hidden"
-        aria-hidden="true"
-      />
-      <Header onAddPhotosClick={handleAddPhotosClick} onAddFromCameraClick={handleAddFromCameraClick} />
-      
-      <main className="w-full max-w-7xl mx-auto mt-8">
-        {renderCurrentView()}
-      </main>
-      
-      {showNav && (
-        <MainNavigation activeView={mainView} setActiveView={setMainView} />
-      )}
-    </div>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-slate-950 text-slate-200 font-sans flex flex-col items-center p-4 sm:p-6 md:p-8 md:pb-8 pb-28">
+        {isDraggingOver && <DragDropOverlay />}
+        {slideshowFiles && <Slideshow files={slideshowFiles} onClose={() => setSlideshowFiles(null)} />}
+
+        {uploadErrors.length > 0 && (
+          <div className="fixed top-4 right-4 z-[5000] max-w-md bg-red-900/95 border border-red-700 p-6 rounded-2xl shadow-2xl animate-fade-in" role="alert">
+            <div className="flex justify-between items-start mb-3">
+              <h3 className="text-2xl font-bold text-red-200"><i className="fas fa-exclamation-triangle mr-2"></i>Upload Errors</h3>
+              <button onClick={dismissUploadErrors} className="text-3xl text-red-300 hover:text-white" aria-label="Dismiss errors">&times;</button>
+            </div>
+            <ul className="space-y-1">
+              {uploadErrors.map((err, i) => (
+                <li key={i} className="text-lg text-red-200">{err}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <input
+          type="file"
+          multiple
+          accept={ACCEPTED_FILE_INPUT}
+          ref={fileInputRef}
+          onChange={(e) => { handleFilesAdded(Array.from(e.target.files ?? [])); e.target.value = ''; }}
+          className="hidden"
+          aria-hidden="true"
+        />
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          ref={cameraInputRef}
+          onChange={(e) => { handleFilesAdded(Array.from(e.target.files ?? [])); e.target.value = ''; }}
+          className="hidden"
+          aria-hidden="true"
+        />
+        <Header onAddPhotosClick={handleAddPhotosClick} onAddFromCameraClick={handleAddFromCameraClick} />
+
+        <main className="w-full max-w-7xl mx-auto mt-8">
+          {renderCurrentView()}
+        </main>
+
+        {showNav && (
+          <MainNavigation activeView={mainView} setActiveView={setMainView} />
+        )}
+      </div>
+    </ErrorBoundary>
   );
 }
