@@ -3,4 +3,5 @@ export interface SharedDetails {
   senderEmail: string;
   message: string;
   files: File[];
+  sharedAt: Date;
 }

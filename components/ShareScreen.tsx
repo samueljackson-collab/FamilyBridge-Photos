@@ -1,11 +1,14 @@
 
 import React, { useState } from 'react';
+import { formatBytes } from '../utils/fileUtils';
 
 interface ShareScreenProps {
   files: File[];
   onSend: (details: { recipientEmail: string; senderEmail: string; message: string; }) => void;
   onCancel: () => void;
 }
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const ShareScreen: React.FC<ShareScreenProps> = ({ files, onSend, onCancel }) => {
   const [recipientEmail, setRecipientEmail] = useState('');
@@ -20,29 +23,28 @@ export const ShareScreen: React.FC<ShareScreenProps> = ({ files, onSend, onCance
       setError('Please fill out both email fields.');
       return;
     }
+    if (!EMAIL_REGEX.test(recipientEmail) || !EMAIL_REGEX.test(senderEmail)) {
+      setError('Please enter valid email addresses.');
+      return;
+    }
     setError('');
     setIsLoading(true);
-    // Simulate network delay
     setTimeout(() => {
       setIsLoading(false);
       onSend({ recipientEmail, senderEmail, message });
     }, 1500);
   };
-  
+
   const totalSize = files.reduce((acc, file) => acc + file.size, 0);
-  const formatBytes = (bytes: number, decimals = 2): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  };
 
   return (
     <div className="bg-slate-900 p-8 sm:p-12 rounded-3xl shadow-2xl w-full max-w-4xl mx-auto border border-slate-700 animate-fade-in">
-        <h2 className="text-6xl font-bold mb-8 text-slate-100 text-center">Share Files</h2>
-        
+        <h2 className="text-6xl font-bold mb-4 text-slate-100 text-center">Share Files</h2>
+        <p className="text-xl text-center text-amber-400 mb-8">
+          <i className="fas fa-info-circle mr-2"></i>
+          Demo mode &mdash; sharing is saved locally only. Connect a backend to send real emails.
+        </p>
+
         <div className="bg-slate-800 p-6 rounded-2xl mb-8 text-center">
             <p className="text-3xl text-slate-300">You are sending <strong className="text-blue-400">{files.length}</strong> file(s)</p>
             <p className="text-2xl text-slate-400 mt-2">Total size: <strong className="text-blue-400">{formatBytes(totalSize)}</strong></p>

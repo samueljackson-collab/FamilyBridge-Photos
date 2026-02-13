@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { getFileIcon } from '../utils/fileUtils';
 
@@ -17,7 +17,7 @@ const formatTime = (timeInSeconds: number): string => {
 export const Slideshow: React.FC<SlideshowProps> = ({ files, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [speed, setSpeed] = useState(5000); // 5 seconds
+  const [speed, setSpeed] = useState(5000);
   const [isControlsVisible, setIsControlsVisible] = useState(true);
   const timerRef = useRef<number | null>(null);
   const controlsTimeoutRef = useRef<number | null>(null);
@@ -27,33 +27,32 @@ export const Slideshow: React.FC<SlideshowProps> = ({ files, onClose }) => {
   const currentFile = validFiles[currentIndex];
   const isVideo = currentFile?.type.startsWith('video/');
 
-  const advance = (direction: 'next' | 'prev') => {
-    const nextIndex = direction === 'next' 
-        ? (currentIndex + 1) % validFiles.length 
-        : (currentIndex - 1 + validFiles.length) % validFiles.length;
-    setCurrentIndex(nextIndex);
-  };
+  // Use useCallback with deps to avoid stale closure over currentIndex
+  const advance = useCallback((direction: 'next' | 'prev') => {
+    setCurrentIndex(prev => {
+      if (direction === 'next') return (prev + 1) % validFiles.length;
+      return (prev - 1 + validFiles.length) % validFiles.length;
+    });
+  }, [validFiles.length]);
 
-  const resetTimer = () => {
+  // Auto-advance timer
+  useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (isPlaying && !isVideo) {
       timerRef.current = window.setTimeout(() => advance('next'), speed);
     }
-  };
-
-  useEffect(() => {
-    resetTimer();
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [currentIndex, isPlaying, speed, isVideo]);
+  }, [currentIndex, isPlaying, speed, isVideo, advance]);
 
-  const showControls = () => {
+  const showControls = useCallback(() => {
     setIsControlsVisible(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     controlsTimeoutRef.current = window.setTimeout(() => setIsControlsVisible(false), 3000);
-  };
+  }, []);
 
+  // Keyboard and mouse event handlers
   useEffect(() => {
     showControls();
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -70,8 +69,8 @@ export const Slideshow: React.FC<SlideshowProps> = ({ files, onClose }) => {
       window.removeEventListener('mousemove', showControls);
       if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     };
-  }, []);
-  
+  }, [onClose, advance, showControls]);
+
   const handleVideoEnded = () => {
     if (isPlaying) advance('next');
   };
@@ -80,7 +79,7 @@ export const Slideshow: React.FC<SlideshowProps> = ({ files, onClose }) => {
     if (currentFile) return URL.createObjectURL(currentFile);
     return null;
   }, [currentFile]);
-  
+
   useEffect(() => {
     return () => { if (url) URL.revokeObjectURL(url); }
   }, [url]);
