@@ -94,6 +94,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({ isOpen
         role="dialog"
         aria-modal="true"
         aria-labelledby="location-picker-title"
+        aria-describedby="location-picker-description"
     >
       <div 
         ref={modalRef}
@@ -101,7 +102,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({ isOpen
         onClick={e => e.stopPropagation()}
       >
         <h2 id="location-picker-title" className="text-5xl font-bold text-slate-100 text-center">Select a Location</h2>
-        <p className="text-2xl text-slate-400 mt-4 text-center">Click on the map to place a pin where the photo was taken.</p>
+        <p id="location-picker-description" className="text-2xl text-slate-400 mt-4 text-center">Click on the map to place a pin where the photo was taken.</p>
         
         <div className="w-full h-96 my-6 rounded-2xl overflow-hidden border-2 border-slate-700">
           <MapContainer ref={mapRef} center={[20, 0]} zoom={2} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>

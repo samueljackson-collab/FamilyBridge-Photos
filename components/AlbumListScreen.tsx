@@ -95,7 +95,8 @@ export const AlbumListScreen: React.FC<AlbumListScreenProps> = ({ albums, onCrea
                             onClick={() => onViewAlbum(name)}
                             className="relative group aspect-square rounded-2xl overflow-hidden shadow-lg transition-all duration-300 transform cursor-pointer border-2 border-slate-800 hover:border-blue-500 hover:scale-105"
                             tabIndex={0}
-                            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onViewAlbum(name)}
+                            role="button"
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onViewAlbum(name); } }}
                             aria-label={`View album: ${name}`}
                         >
                             <AlbumCover albumFiles={files} />

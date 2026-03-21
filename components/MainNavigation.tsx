@@ -23,7 +23,7 @@ const NavButton: React.FC<{
                 ${isActive ? 'border-blue-400' : 'border-transparent md:hover:border-slate-700'}`}
             aria-current={isActive ? 'page' : undefined}
         >
-            <i className={`fas ${icon} text-2xl md:text-3xl`}></i>
+            <i className={`fas ${icon} text-2xl md:text-3xl`} aria-hidden="true"></i>
             <span>{label}</span>
         </button>
     );

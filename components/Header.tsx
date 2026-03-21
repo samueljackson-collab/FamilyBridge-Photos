@@ -1,5 +1,6 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+import { HelpModal } from './HelpModal';
 
 interface HeaderProps {
     onAddPhotosClick: () => void;
@@ -7,19 +8,10 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onAddPhotosClick, onAddFromCameraClick }) => {
-  const showHelp = () => {
-    alert(
-      'Welcome to FamilyBridge Photos!\n\n' +
-      'How to Use:\n' +
-      '1. Click "Add Photos" to upload your files.\n' +
-      '2. Use the "Photos" and "Sharing" tabs to navigate.\n' +
-      '3. In the gallery, hover over an item and use the checkbox to select it.\n' +
-      '4. Use the toolbar at the top to Share, Download, or Delete selected files.\n' +
-      '5. Switch between Grid and Map views to see your photos in different ways!'
-    );
-  };
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   return (
+    <>
     <header className="w-full max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-center text-center md:text-left gap-6">
         <div className="text-left">
@@ -46,7 +38,7 @@ export const Header: React.FC<HeaderProps> = ({ onAddPhotosClick, onAddFromCamer
             <span>Use Camera</span>
           </button>
           <button
-            onClick={showHelp}
+            onClick={() => setIsHelpOpen(true)}
             className="w-full sm:w-auto text-xl sm:text-2xl py-3 px-4 sm:py-4 sm:px-6 bg-slate-800 text-slate-200 font-semibold rounded-2xl hover:bg-slate-700 transition-colors flex items-center justify-center gap-3"
             aria-label="Show help instructions"
           >
@@ -56,5 +48,7 @@ export const Header: React.FC<HeaderProps> = ({ onAddPhotosClick, onAddFromCamer
         </div>
       </div>
     </header>
+    <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+    </>
   );
 };

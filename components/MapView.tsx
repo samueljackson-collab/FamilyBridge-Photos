@@ -6,6 +6,7 @@ import MarkerClusterGroup from 'react-leaflet-cluster';
 import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
 import L from 'leaflet';
 import { UploadIndicator } from './UploadIndicator';
+import { ConfirmationModal } from './ConfirmationModal';
 import { PhotoMetadata } from '../utils/fileUtils';
 
 export interface PhotoPoint {
@@ -69,6 +70,7 @@ const ClusterViewerModal: React.FC<{
 }> = ({ files, onClose, onViewDetails, metadataCache, onSelectInGallery }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [selectedInCluster, setSelectedInCluster] = useState<Set<File>>(new Set());
+  const [confirmState, setConfirmState] = useState<{ open: boolean; message: string; onConfirm: () => void }>({ open: false, message: '', onConfirm: () => {} });
 
   useEffect(() => {
     const modalNode = modalRef.current;
@@ -166,15 +168,25 @@ const ClusterViewerModal: React.FC<{
 
   const handleDownloadSelected = () => {
     if (selectedInCluster.size === 0) return;
-    if (window.confirm(`Are you sure you want to download the ${selectedInCluster.size} selected photos?`)) {
+    setConfirmState({
+      open: true,
+      message: `Download the ${selectedInCluster.size} selected photo${selectedInCluster.size === 1 ? '' : 's'}?`,
+      onConfirm: () => {
         selectedInCluster.forEach(downloadFile);
-    }
+        setConfirmState(s => ({ ...s, open: false }));
+      },
+    });
   };
 
   const handleDownloadAll = () => {
-    if (window.confirm(`Are you sure you want to download all ${files.length} photos in this area?`)) {
-      files.forEach(downloadFile);
-    }
+    setConfirmState({
+      open: true,
+      message: `Download all ${files.length} photo${files.length === 1 ? '' : 's'} in this area?`,
+      onConfirm: () => {
+        files.forEach(downloadFile);
+        setConfirmState(s => ({ ...s, open: false }));
+      },
+    });
   };
 
   const handleSelect = () => {
@@ -183,6 +195,16 @@ const ClusterViewerModal: React.FC<{
   }
 
   return ReactDOM.createPortal(
+    <>
+    <ConfirmationModal
+      isOpen={confirmState.open}
+      title="Confirm Download"
+      message={confirmState.message}
+      confirmText="Download"
+      confirmVariant="primary"
+      onConfirm={confirmState.onConfirm}
+      onClose={() => setConfirmState(s => ({ ...s, open: false }))}
+    />
     <div className="fixed inset-0 z-[2000] bg-black/70 backdrop-blur-sm flex items-center justify-center animate-fade-in" onClick={onClose} aria-modal="true" role="dialog">
       <div ref={modalRef} className="bg-slate-900 w-full h-full p-4 sm:rounded-3xl sm:border sm:border-slate-700 sm:max-w-4xl sm:h-[85vh] sm:p-8 flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-6 flex-shrink-0 flex-wrap gap-4">
@@ -251,7 +273,8 @@ const ClusterViewerModal: React.FC<{
           ))}
         </div>
       </div>
-    </div>,
+    </div>
+    </>,
     document.body
   );
 };
@@ -337,7 +360,7 @@ const SearchControl: React.FC = () => {
     return null;
 };
 
-const OfflineMapLayer: React.FC = () => {
+const OfflineMapLayer: React.FC<{ onRequestConfirm: (message: string, onConfirm: () => void) => void }> = ({ onRequestConfirm }) => {
     const map = useMap();
 
     useEffect(() => {
@@ -359,15 +382,11 @@ const OfflineMapLayer: React.FC = () => {
 
         const saveTilesControl = new (L.Control as any).SaveTiles(tileLayer, {
             zoomlevels: [10, 11, 12, 13, 14, 15, 16], // Download a reasonable range for offline use
-            confirm(layer: any, successCallback: any) {
-                if (window.confirm('Save map tiles for the current view? This can take a moment and use storage space.')) {
-                    successCallback();
-                }
+            confirm(_layer: any, successCallback: any) {
+                onRequestConfirm('Save map tiles for the current view? This can take a moment and use storage space.', successCallback);
             },
-            confirmRemoval(layer: any, successCallback: any) {
-                if (window.confirm('Delete all saved map tiles?')) {
-                    successCallback();
-                }
+            confirmRemoval(_layer: any, successCallback: any) {
+                onRequestConfirm('Delete all saved map tiles?', successCallback);
             },
             saveText: '<i class="fas fa-download" title="Save map for offline use"></i>',
             rmText: '<i class="fas fa-trash" title="Delete offline map data"></i>',
@@ -380,14 +399,19 @@ const OfflineMapLayer: React.FC = () => {
             }
             map.removeControl(saveTilesControl);
         };
-    }, [map]);
+    }, [map, onRequestConfirm]);
 
     return null;
 };
 
 export const MapView: React.FC<MapViewProps> = ({ photoPoints, centerOn, onShowInGallery, onViewDetails, isUploading, isOnline, metadataCache, onSelectInGallery, isHeatmapMode, onHeatmapToggle }) => {
   const [clusterPreview, setClusterPreview] = useState<File[] | null>(null);
+  const [offlineConfirmState, setOfflineConfirmState] = useState<{ open: boolean; message: string; onConfirm: () => void }>({ open: false, message: '', onConfirm: () => {} });
   const mapRef = useRef<L.Map>(null);
+
+  const handleOfflineConfirmRequest = (message: string, onConfirm: () => void) => {
+    setOfflineConfirmState({ open: true, message, onConfirm: () => { onConfirm(); setOfflineConfirmState(s => ({ ...s, open: false })); } });
+  };
 
   useEffect(() => {
     if (centerOn && mapRef.current) {
@@ -549,6 +573,15 @@ export const MapView: React.FC<MapViewProps> = ({ photoPoints, centerOn, onShowI
 
   return (
     <div className="relative w-full h-full">
+        <ConfirmationModal
+          isOpen={offlineConfirmState.open}
+          title="Confirm"
+          message={offlineConfirmState.message}
+          confirmText="Confirm"
+          confirmVariant="primary"
+          onConfirm={offlineConfirmState.onConfirm}
+          onClose={() => setOfflineConfirmState(s => ({ ...s, open: false }))}
+        />
         {clusterPreview && <ClusterViewerModal 
             files={clusterPreview} 
             onClose={() => setClusterPreview(null)} 
@@ -572,7 +605,7 @@ export const MapView: React.FC<MapViewProps> = ({ photoPoints, centerOn, onShowI
         <MapContainer ref={mapRef} center={centerOn?.position || [20, 0]} zoom={centerOn ? 16 : 2} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
             <FocusPopupOnOpen />
             <SearchControl />
-            <OfflineMapLayer />
+            <OfflineMapLayer onRequestConfirm={handleOfflineConfirmRequest} />
             {photoPoints.length > 0 && (
                 <MarkerClusterGroup 
                     iconCreateFunction={isHeatmapMode ? createHeatmapClusterIcon : createStandardClusterIcon}
