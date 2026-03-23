@@ -8,12 +8,6 @@ interface SlideshowProps {
   onClose: () => void;
 }
 
-const formatTime = (timeInSeconds: number): string => {
-    const minutes = Math.floor(timeInSeconds / 60);
-    const seconds = Math.floor(timeInSeconds % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-};
-
 export const Slideshow: React.FC<SlideshowProps> = ({ files, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);

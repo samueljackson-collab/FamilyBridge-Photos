@@ -80,6 +80,7 @@ export const MemoryViewerModal: React.FC<MemoryViewerModalProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="memory-viewer-title"
+            aria-describedby="memory-viewer-subtitle"
         >
             <div
                 ref={modalRef}
@@ -88,7 +89,7 @@ export const MemoryViewerModal: React.FC<MemoryViewerModalProps> = ({
             >
                 <div className="text-center mb-6 flex-shrink-0">
                     <h2 id="memory-viewer-title" className="text-4xl sm:text-6xl font-bold text-slate-100">{title}</h2>
-                    <p className="text-2xl sm:text-3xl text-slate-400 mt-2">{subtitle}</p>
+                    <p id="memory-viewer-subtitle" className="text-2xl sm:text-3xl text-slate-400 mt-2">{subtitle}</p>
                 </div>
                 
                 <div className="flex-grow overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4 p-2 -mr-2">

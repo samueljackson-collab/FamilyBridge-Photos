@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { PhotoMetadata, formatBytes } from '../utils/fileUtils';
+import { PhotoMetadata, formatBytes, formatTime } from '../utils/fileUtils';
 import { LocationPickerModal } from './LocationPickerModal';
 
 interface PhotoDetailScreenProps {
@@ -12,12 +12,6 @@ interface PhotoDetailScreenProps {
   onLocationUpdate: (file: File, location: { latitude: number; longitude: number }) => void;
   customTags: string[];
   onUpdateTags: (file: File, tags: string[]) => void;
-}
-
-const formatTime = (timeInSeconds: number): string => {
-    const minutes = Math.floor(timeInSeconds / 60);
-    const seconds = Math.floor(timeInSeconds % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 const DetailItem: React.FC<{ label: string; value: string | undefined; icon: string }> = ({ label, value, icon }) => {
@@ -45,6 +39,7 @@ const CustomVideoPlayer: React.FC<{ src: string }> = ({ src }) => {
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [areControlsVisible, setAreControlsVisible] = useState(true);
+    const [fsError, setFsError] = useState<string | null>(null);
 
     const showControls = () => {
         setAreControlsVisible(true);
@@ -166,7 +161,7 @@ const CustomVideoPlayer: React.FC<{ src: string }> = ({ src }) => {
         if (containerRef.current) {
             if (!document.fullscreenElement) {
                 containerRef.current.requestFullscreen().catch(err => {
-                    alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                    setFsError(`Could not enter full-screen: ${err.message}`);
                 });
             } else {
                 document.exitFullscreen();
@@ -206,7 +201,14 @@ const CustomVideoPlayer: React.FC<{ src: string }> = ({ src }) => {
                 </div>
             )}
             
-            <div className={`absolute bottom-0 left-0 right-0 p-2 sm:p-4 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300 ${areControlsVisible ? 'opacity-100' : 'opacity-0'}`}>
+            {fsError && (
+            <div className="absolute top-4 left-4 right-4 z-10 flex items-center gap-3 bg-red-900/90 text-white text-xl p-4 rounded-xl border border-red-500" role="alert">
+                <i className="fas fa-exclamation-circle text-red-400" aria-hidden="true"></i>
+                <span className="flex-grow">{fsError}</span>
+                <button onClick={() => setFsError(null)} aria-label="Dismiss error" className="flex-shrink-0 text-white hover:text-red-300 transition-colors"><i className="fas fa-times" aria-hidden="true"></i></button>
+            </div>
+        )}
+        <div className={`absolute bottom-0 left-0 right-0 p-2 sm:p-4 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300 ${areControlsVisible ? 'opacity-100' : 'opacity-0'}`}>
                 <div 
                     ref={progressRef}
                     onClick={handleSeek}
@@ -271,6 +273,7 @@ export const PhotoDetailScreen: React.FC<PhotoDetailScreenProps> = ({ file, meta
   const mediaContainerRef = useRef<HTMLDivElement>(null);
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fsError, setFsError] = useState<string | null>(null);
   const [newTag, setNewTag] = useState('');
 
   const allTags = useMemo(() => {
@@ -328,7 +331,7 @@ export const PhotoDetailScreen: React.FC<PhotoDetailScreenProps> = ({ file, meta
     if (!mediaContainerRef.current) return;
     if (!document.fullscreenElement) {
         mediaContainerRef.current.requestFullscreen().catch(err => {
-            alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+            setFsError(`Could not enter full-screen: ${err.message}`);
         });
     } else {
         document.exitFullscreen();
@@ -367,6 +370,13 @@ export const PhotoDetailScreen: React.FC<PhotoDetailScreenProps> = ({ file, meta
         </button>
       </div>
 
+      {fsError && (
+        <div className="mb-4 flex items-center gap-3 bg-red-900/80 text-white text-xl p-4 rounded-xl border border-red-500" role="alert">
+          <i className="fas fa-exclamation-circle text-red-400" aria-hidden="true"></i>
+          <span className="flex-grow">{fsError}</span>
+          <button onClick={() => setFsError(null)} aria-label="Dismiss error" className="flex-shrink-0 text-white hover:text-red-300 transition-colors"><i className="fas fa-times" aria-hidden="true"></i></button>
+        </div>
+      )}
       <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
         <div ref={mediaContainerRef} className="relative flex-grow lg:w-2/3 flex items-center justify-center bg-slate-900 rounded-2xl p-2 sm:p-4 min-h-[50vh] lg:min-h-[60vh] fullscreen:bg-black fullscreen:p-0">
           {isImage && url ? (

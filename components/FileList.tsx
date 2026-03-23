@@ -87,8 +87,6 @@ const PhotoGridItem: React.FC<{
   const [previewPosition, setPreviewPosition] = useState({ x: 0, y: 0 });
   const [previewScale, setPreviewScale] = useState(1);
   const [panPosition, setPanPosition] = useState({ x: 0.5, y: 0.5 });
-  const checkboxRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
       return () => {
           if (url) {
@@ -96,14 +94,6 @@ const PhotoGridItem: React.FC<{
           }
       }
   }, [url]);
-
-  const handleContainerFocus = (e: React.FocusEvent<HTMLDivElement>) => {
-    // This handler is for when the parent grid focuses the container.
-    // We immediately delegate focus to the interactive checkbox inside.
-    if (e.target === e.currentTarget && checkboxRef.current) {
-      checkboxRef.current.focus();
-    }
-  };
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -149,15 +139,12 @@ const PhotoGridItem: React.FC<{
   return (
     <>
       <div
-        ref={itemRef}
         onClick={onView}
         onMouseEnter={() => isImage && setIsPreviewVisible(true)}
         onMouseLeave={handleMouseLeave}
         onMouseMove={handleMouseMove}
         onWheel={handleWheel}
-        className={`relative group aspect-square rounded-2xl overflow-hidden shadow-lg transition-all duration-300 transform cursor-pointer border border-slate-800 ${isSelected ? 'ring-8 ring-blue-500 scale-95' : 'hover:border-slate-600'} ${isHighlighted ? 'ring-8 ring-yellow-400 animate-pulse' : ''} focus:outline-none`}
-        tabIndex={-1}
-        onFocus={handleContainerFocus}
+        className={`relative group aspect-square rounded-2xl overflow-hidden shadow-lg transition-all duration-300 transform cursor-pointer border border-slate-800 ${isSelected ? 'ring-8 ring-blue-500 scale-95' : 'hover:border-slate-600'} ${isHighlighted ? 'ring-8 ring-yellow-400 animate-pulse' : ''}`}
         role="gridcell"
         aria-selected={isSelected}
       >
@@ -192,7 +179,7 @@ const PhotoGridItem: React.FC<{
         <div className={`absolute inset-0 bg-black transition-opacity duration-300 pointer-events-none ${isSelected ? 'opacity-40' : 'opacity-0 group-hover:opacity-20'}`}></div>
 
         <div
-          ref={checkboxRef}
+          ref={itemRef}
           role="checkbox"
           aria-checked={isSelected}
           aria-label={`Select file ${file.name}`}
